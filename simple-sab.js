@@ -37,20 +37,20 @@ const loadStore = async () => {
   return createStore(p);
 };
 
-const formatMessage = (question, results) => {
+const formatMessage = (results) => {
   return {
     role: 'user',
     content: `
-        Answer the user question using the provided context.        
-        Question: ${question}
+        Answer the user question using the provided context. Do not preface your answer.      
+        Question: Make up a new idea for simple sabotage for office workers in 15 words or less.
         Context: ${results.map((r) => r.pageContent).join('\n')}`,
   };
 };
 
 const newMessage = async (history, message) => {
   const results = await openAi.chat.completions.create({
-    model: 'gpt-4',
-    temperature: 0,
+    model: 'gpt-3.5-turbo',
+    temperature: 1.2,
     messages: [...history, message],
   });
 
@@ -65,21 +65,19 @@ const chat = async () => {
         You are a helpful AI assistant.
         Answer the question to the best of your ability.
         Feel free to be creative.
-        Do not preface your answer with things like "New Idea" or "A new idea for simple sabotage could be".
-        Do not mention previous answers.
+        Be succinct.
+        Do not preface your answer.
+        Use an active voice.
+        Do not use in your answer things like "One idea", "New Idea", "One new idea" or "A new idea".
+        Do not mention previous answers or reuse copy from previous answers.
         `,
-    },
-    {
-      role: 'user',
-      content: `Answer the user's questions using the provided context.
-        Question: ${question}`,
     },
   ];
 
   const store = await loadStore();
 
   const start = () => {
-    rl.question('\nYou: ', async (userInput) => {
+    rl.question('\nPress Enter to Generate A New Rule: ', async (userInput) => {
       const lowerCase = userInput.toLocaleLowerCase();
       if (lowerCase === 'exit' || lowerCase === 'exit;') {
         rl.close();
@@ -88,12 +86,20 @@ const chat = async () => {
 
       const results = await store.similaritySearch(question, 2);
 
-      const formattedMessage = formatMessage(userInput, results);
+      const formattedMessage = formatMessage(results);
 
       const res = await newMessage(history, formattedMessage);
 
-      history.push(formattedMessage, res);
-
+      history.push(
+        {
+          ...formattedMessage,
+          content: formattedMessage.content.slice(
+            0,
+            formattedMessage.content.indexOf('Context:')
+          ),
+        },
+        res
+      );
       console.log(`\n${res.content}`);
 
       start();
